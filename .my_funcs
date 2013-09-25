@@ -1,0 +1,108 @@
+# -*- mode: sh -*-
+# .my_funcs
+
+#some wierd term bug
+infocmp xterm | sed 's/, smm=[^,]\+//' > xterm
+tic xterm &> /dev/null
+
+function printhelp() {
+
+cat <<EOF
+ Options:
+       list               - show valid hosts
+       all                - shows entire nagios 
+       status [hostname]                - show status for hostname
+       status [hostname] service        - show detailed service information for hostname
+
+EOF
+}
+
+function nstatus() {
+	 #helper script to check nagios statuses
+    local hosts=`grep -i host_name /usr/local/nagios/var/status.dat | uniq | cut -d "=" -f2`    
+    case "$1" in
+	list*)
+	    [[ -z "$2" ]] &&  echo -e "Available Hosts:\n" || echo -e "Available Services on $2:\n"
+	    nagios-cli -q -e list $2	    	    
+	    ;;
+
+	all)
+	    for x in $hosts; do nagios-cli -q -e status $x; done
+	    ;;
+
+	help*)
+	    printhelp
+	    ;;
+
+	status*)
+	    #[[ -z "$3" ]] && nagios-cli -e ${2:-status} $1 || nagios-cli -e status $1 $3
+	    nagios-cli -q -e status $2 $3
+	    ;;
+    esac	   
+}
+
+function contains() {
+    #WHY CAN'T BASH DO THIS YET
+    local seeking=$1; shift
+    local in=1
+    for element; do
+        if [[ $element == $seeking ]]; then
+            in=0
+            break
+        fi
+    done
+    return $in
+}
+
+function _completenstatus_() {
+    
+    COMPREPLY=()
+    CURRENT_ARG="${COMP_WORDS[COMP_CWORD]}"
+    PREV_ARG="${COMP_WORDS[COMP_CWORD-1]}"
+    OPTIONS="all list status"
+    local hosts=`grep -i host_name /usr/local/nagios/var/status.dat | uniq | cut -d "=" -f2`
+
+    #first attempt at bash complettion, bear with me
+    #entered a valid servername and first argument was status, finish the services
+    if ( $(contains $PREV_ARG ${hosts[@]}) ) && [[ ${COMP_WORDS[COMP_CWORD-2]} == status ]]; then
+	#need a better way to localize services, for now.
+	services=$(nagios-cli --no-color -q -e list $PREV_ARG)
+	COMPREPLY=( $(compgen -W "${services}" -- ${CURRENT_ARG}))
+	return 0
+    fi
+
+    #entered a valid server and list option EOF
+    if ( $(contains $PREV_ARG ${hosts[@]}) ) && [[ ${COMP_WORDS[COMP_CWORD-2]} == list ]]; then
+	return 0
+    fi
+
+    #valid service name entered, EOF
+    if ( $(contains $PREV_ARG ${services[@]} ) ); then
+	return 0
+    fi
+
+    #first argument is either a status |list
+    if [[ $PREV_ARG == status ]] || [[ $PREV_ARG == list ]]; then
+    #user entered nstatus status|list
+	COMPREPLY=( $(compgen -W "${hosts}" -- ${CURRENT_ARG}) )
+	return 0
+    fi
+
+    #help EOF
+    if [[ $PREV_ARG == help ]]; then
+	return 0
+    fi
+
+    #all EOF
+    if [[ $PREV_ARG == all ]]; then
+	return 0
+    fi
+
+    #first completions
+    COMPREPLY=($(compgen -W "${OPTIONS}" -- "${CURRENT_ARG}")) 
+}
+
+#bind to nstatus command
+complete -F _completenstatus_ nstatus
+
+
