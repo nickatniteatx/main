@@ -6,7 +6,7 @@ use Data::Dumper;
 use strict;
 use warnings;
 
-#Location of nagios.dat. User can specify alternate localtion with -l
+#Location of nagios.dat
 our $opt_l;
 getopt('l:');
 $opt_l = "/usr/local/nagios/var/status.dat" if ( !$opt_l );
@@ -17,7 +17,7 @@ my $log = Nagios::StatusLog->new( Filename => $opt_l, Version => 3.0 );
 #Check host notifications
 foreach my $host ( $log->list_hosts ) {
     my $obj = $log->host($host);
-    printf "Host: %s Notifications Disabled\n", $obj->host_name if ($obj->notifications_enabled == 0)
+    printf "Notifications disabled for host: %s\n", $obj->host_name if ($obj->notifications_enabled == 0)
 
 }
 
@@ -32,6 +32,6 @@ foreach my $host ( $log->list_hosts ) {
 foreach my $host ( keys %servicehash ) {
     foreach my $service ( @{ $servicehash{$host} } ) {
 	my $svc_stat = $log->service($host,$service);
-	printf "Notifications disabled for %s on %s\n",$service,$host if ($svc_stat->notifications_enabled == 0);     
+	printf "Notifications disabled for service: \"%s\" on host: %s\n",$service,$host if ($svc_stat->notifications_enabled == 0);     
     }
 }
