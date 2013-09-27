@@ -6,7 +6,7 @@ use Data::Dumper;
 use strict;
 use warnings;
 
-#Location of nagios.dat
+#Location of nagios.dat. User can specify alternate localtion with -l
 our $opt_l;
 getopt('l:');
 $opt_l = "/usr/local/nagios/var/status.dat" if ( !$opt_l );
